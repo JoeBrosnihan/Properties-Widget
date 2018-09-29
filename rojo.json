@@ -1,0 +1,14 @@
+{
+  "name": "PropertiesPlugin",
+  "servePort": 8000,
+  "partitions": {
+  	"src": {
+  		"path": "src",
+  		"target": "ReplicatedStorage.PropertiesPlugin"
+  	},
+  	"Roact": {
+  		"path": "roact/lib",
+  		"target": "ReplicatedStorage.PropertiesPlugin.Roact"
+  	}
+  }
+}
