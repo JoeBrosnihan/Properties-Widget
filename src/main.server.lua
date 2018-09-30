@@ -103,8 +103,8 @@ function PropertiesComponent:render()
 	}
 	for prop,_ in pairs(propDescriptors) do
 		local component = PropComponentFactory.createComponent(prop, selection)
-		if component then --TODO: can I remove this conditional? Adding a nil value is the same as not adding the key?
-			roactChildren["Prop_" .. prop.Name] = component
+		if component then
+			roactChildren["Prop_" .. prop.Name] = component --TODO: handle name collisions
 		end
 	end
 	
@@ -114,7 +114,7 @@ function PropertiesComponent:render()
 	local connections = {}
 	self.state.connections = connections
 	for _,v in pairs(selection) do -- Note that chaning one property on N instances causes N reconciles. Could be improved
-		v.Changed:Connect(function(propName)
+		local con = v.Changed:Connect(function(propName)
 			--Just nuke everything and rebuild for now.
 			rootHandle = Roact.reconcile(rootHandle, Roact.createElement(PropertiesComponent, {
 				selection = selection
@@ -137,6 +137,7 @@ function PropertiesComponent:render()
 			end
 			]]
 		end)
+		table.insert(connections, con)
 	end
 	
 	return Roact.createElement("ScrollingFrame", {

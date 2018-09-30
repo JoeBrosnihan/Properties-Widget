@@ -4,43 +4,20 @@ local src = script.Parent.Parent
 local Roact = require(src.Roact)
 local Style = require(src.Style)
 
-local StringProp = Roact.Component:extend("StringProp")
+local StringProp = Roact.PureComponent:extend("StringProp")
 
 
-
-local function getUniqueValue(selection, propName)
-	local value = nil
-	local hasBeenSet = false
-	local unique = true
-	for _,v in pairs(selection) do
-		pcall(function() -- Prop may not be present. Also, reading can sometimes throw.
-			local newValue = v[propName]
-			assert(typeof(newValue) == "string")
-			
-			if not hasBeenSet then
-				value = newValue
-				hasBeenSet = true
-			elseif value ~= newValue then
-				unique = false
-				return false
-			end
-		end)
-	end
-	
-	if hasBeenSet and unique then
-		return true, value
-	else
-		return false
-	end
-end
 
 --TODO: convert component to a function, since StringProp has no state
 
 function StringProp:render()
 	local selection = self.props.selection
-	local name = self.props.name
-	
-	local unique, value = getUniqueValue(selection, name)
+	local propDesc = self.props.propDesc
+	local propSetter = self.props.propSetter
+	local unique = self.props.unique
+	local value = self.props.value
+
+	local name = propDesc.Name
 	
 	local displayValue
 	if unique then
@@ -81,11 +58,7 @@ function StringProp:render()
 			
 			[Roact.Event.FocusLost] = (function(inst, enterPressed)
 				if enterPressed then
-					for _,v in pairs(selection) do
-						pcall(function() --TODO: I can probably avoid pcall here by doing some checks?
-							v[name] = inst.Text
-						end)
-					end
+					propSetter(selection, propDesc, inst.Text)
 				end
 			end)
 		})

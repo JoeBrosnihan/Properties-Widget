@@ -4,34 +4,8 @@ local src = script.Parent.Parent
 local Roact = require(src.Roact)
 local Style = require(src.Style)
 
-local BoolProp = Roact.Component:extend("BoolProp")
+local BoolProp = Roact.PureComponent:extend("BoolProp")
 
-
-local function getUniqueValue(selection, propName)
-	local value = nil
-	local hasBeenSet = false
-	local unique = true
-	for _,v in pairs(selection) do
-		pcall(function() -- Prop may not be present. Also, reading can sometimes throw.
-			local newValue = v[propName]
-			assert(typeof(newValue) == "boolean")
-			
-			if not hasBeenSet then
-				value = newValue
-				hasBeenSet = true
-			elseif value ~= newValue then
-				unique = false
-				return false
-			end
-		end)
-	end
-	
-	if hasBeenSet and unique then
-		return true, value
-	else
-		return false
-	end
-end
 
 local CheckBoxComponent = Roact.Component:extend("CheckBox")
 
@@ -76,16 +50,16 @@ end
 
 function BoolProp:render()
 	local selection = self.props.selection
-	local name = self.props.name
+	local propDesc = self.props.propDesc
+	local propSetter = self.props.propSetter
+	local unique = self.props.unique
+	local value = self.props.value
+
+	local name = propDesc.Name
+
 	
-	
-	local unique, value = getUniqueValue(selection, name)
 	local callback = (function(value)
-		for _,v in pairs(selection) do
-			pcall(function() --TODO: I can probably avoid pcall here by doing some checks?
-				v[name] = value
-			end)
-		end
+		propSetter(selection, propDesc, value)
 	end)
 	
 	return Roact.createElement("Frame", {

@@ -4,40 +4,17 @@ local src = script.Parent.Parent
 local Roact = require(src.Roact)
 local Style = require(src.Style)
 
-local GenericProp = Roact.Component:extend("GenericProp")
+local GenericProp = Roact.PureComponent:extend("GenericProp")
 
 
-
-local function getUniqueValue(selection, propName) --TODO: every PropComponent uses this. Should move somewhere else
-	local value = nil
-	local hasBeenSet = false
-	local unique = true
-	for _,v in pairs(selection) do
-		pcall(function() -- Prop may not be present. Also, reading can sometimes throw.
-			local newValue = v[propName]
-			
-			if not hasBeenSet then
-				value = newValue
-				hasBeenSet = true
-			elseif value ~= newValue then
-				unique = false
-				return false
-			end
-		end)
-	end
-	
-	if hasBeenSet and unique then
-		return true, value
-	else
-		return false
-	end
-end
 
 function GenericProp:render()
 	local selection = self.props.selection
-	local name = self.props.name
-	
-	local unique, value = getUniqueValue(selection, name)
+	local propDesc = self.props.propDesc
+	local unique = self.props.unique
+	local value = self.props.value
+
+	local name = propDesc.Name
 	
 	local displayValue
 	if unique then
