@@ -37,7 +37,7 @@ local rootHandle
 
 
 
-local PropertiesComponent = Roact.Component:extend("PropertiesComponent")
+local PropertiesComponent = Roact.PureComponent:extend("PropertiesComponent")
 
 
 local function addClassPropDescriptors(classDesc, propDescriptorList)
@@ -69,8 +69,22 @@ end
 
 function PropertiesComponent:init()
 	self.state = { --TODO: why can't I use setState here?
-		connections = {}
+		connections = {},
+		propChanged = false,
+		heartbeatConnection = nil,
 	}
+
+	self.onHeartbeat = (function(step)
+		if (self.state.propChanged) then
+			self:setState({
+				propChanged = false -- trigger a re-render
+			})
+		end
+	end)
+end
+
+function PropertiesComponent:didMount()
+	heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(self.onHeartbeat)
 end
 
 local function disconnectAll(connections)
@@ -101,7 +115,7 @@ function PropertiesComponent:render()
 	local roactChildren = {
 		ListLayout = Roact.createElement("UIListLayout")
 	}
-	for prop,_ in pairs(propDescriptors) do
+	for prop,_ in pairs(propDescriptors) do -- TODO: Move out of render. Reading every prop on every render is expensive (9+ ms) an unnecessary.
 		local component = PropComponentFactory.createComponent(prop, selection)
 		if component then
 			roactChildren["Prop_" .. prop.Name] = component --TODO: handle name collisions
@@ -110,33 +124,21 @@ function PropertiesComponent:render()
 	
 	-- update children upon property change
 	
+	local dirtyFunction = (function(propName)
+		self:setState(function(prevState)
+			if prevState.propChanged then
+				return nil
+			else
+				return { propChanged = true } --TODO: don't trigger a re-render. In case of BoolProps, it can flash an intermediate value
+			end
+		end)
+	end)
+
 	disconnectAll(self.state.connections)
 	local connections = {}
 	self.state.connections = connections
 	for _,v in pairs(selection) do -- Note that chaning one property on N instances causes N reconciles. Could be improved
-		local con = v.Changed:Connect(function(propName)
-			--Just nuke everything and rebuild for now.
-			rootHandle = Roact.reconcile(rootHandle, Roact.createElement(PropertiesComponent, {
-				selection = selection
-			}))
-			--[[
-			local prop
-			for propDesc,_ in pairs(propDescriptors) do
-				if propDesc.Name == propName then
-					prop = propDesc
-					break
-				end
-			end
-			assert(prop)
-			
-			local oldComponent = roactChildren["Prop_" .. propName]
-			local newComponent = PropComponentFactory.createComponent(prop, selection)
-			if oldComponent and newComponent then
-				print("reconciling")
-				Roact.reconcile(oldComponent, newComponent) --This is not how Roact works
-			end
-			]]
-		end)
+		local con = v.Changed:Connect(dirtyFunction)
 		table.insert(connections, con)
 	end
 	
@@ -148,6 +150,7 @@ end
 function PropertiesComponent:willUnmount()
 	disconnectAll(self.state.connections)
 	self.state.connections = {}
+	self.state.heartbeatConnection:Disconnect()
 end
 
 local root = Roact.createElement(PropertiesComponent, {
