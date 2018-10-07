@@ -4,7 +4,7 @@ print("Launching Lua Properties Widget...")
 local src = script.Parent
 
 local Roact = require(src.Roact)
-local RBX = require(src.ParsedAPI)
+local Reflection = require(src.Reflection)
 local PropComponentFactory = require(src.PropComponentFactory)
 
 
@@ -42,23 +42,23 @@ local PropertiesComponent = Roact.PureComponent:extend("PropertiesComponent")
 
 local function addClassPropDescriptors(classDesc, propDescriptorList)
 	while classDesc do
-		for _,prop in pairs(classDesc.properties) do
+		for _,prop in pairs(classDesc._PropsByName) do
 			propDescriptorList[prop] = true
 		end
-		classDesc = RBX[classDesc.Superclass]
+		classDesc = Reflection.classesByName[classDesc.Superclass]
 	end
 end
 
 -- Leave cookies in the prop desc's to know if they're readable from Lua
 local function processPropDescSet(propDescSet, selection)
 	for propDesc,_ in pairs(propDescSet) do
-		if propDesc.luaCanRead == nil then
+		if propDesc._LuaCanRead == nil then
 			for _,v in pairs(selection) do
-				if v:IsA(propDesc.Class) then
-					propDesc.luaCanRead = false
+				if v:IsA(propDesc._Class.Name) then
+					propDesc._LuaCanRead = false
 					pcall(function()
-						local _ = v[propDesc.Name] -- This may throw.
-						propDesc.luaCanRead = true
+						local readTest = v[propDesc.Name] -- This may throw.
+						propDesc._LuaCanRead = true
 					end)
 					break;
 				end
@@ -103,7 +103,7 @@ function PropertiesComponent:render()
 	local selectedClasses = {}
 	local propDescriptors = {}
 	for _,v in pairs(selection) do
-		local classDesc = RBX[v.ClassName]
+		local classDesc = Reflection.classesByName[v.ClassName]
 		if not selectedClasses[classDesc] then
 			selectedClasses[classDesc] = true
 			addClassPropDescriptors(classDesc, propDescriptors)

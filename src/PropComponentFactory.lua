@@ -9,17 +9,18 @@ local BoolProp = require(src.Components.BoolProp)
 
 local PropComponentFactory = {}
 
-local function arrayContains(array, value)
-	for _,v in pairs(array) do
-		if v == value then
-			return true
-		end
-	end
-	return false
-end
 
 local function shouldRender(propDesc)
-	return propDesc.luaCanRead and not arrayContains(propDesc.tags, "deprecated") and not arrayContains(propDesc.tags, "notbrowsable")
+	if not propDesc._LuaCanRead then
+		return false
+	end
+
+	local tags = propDesc.Tags
+	if tags then
+		return not (tags.Deprecated or tags.NotBrowsable)
+	end
+
+	return true
 end
 
 local function getUniqueValue(selection, propName) --TODO: handle prop name collisions
@@ -47,7 +48,7 @@ end
 
 local function propSetter(selection, propDesc, value)
 	for _,v in pairs(selection) do
-		if v:IsA(propDesc.Class) then
+		if v:IsA(propDesc._Class.Name) then
 			pcall(function() -- TODO: better error handling. Possibly print the error.
 				v[propDesc.Name] = value
 			end)
@@ -68,9 +69,12 @@ function PropComponentFactory.createComponent(propDesc, selection)
 		unique = unique,
 		value = value,
 	}
-	if propDesc.ValueType == "string" or propDesc.ValueType == "ProtectedString" then -- TODO: need separate ProtectedStringProp?
+
+	local valueType = propDesc.ValueType.Name
+
+	if valueType == "string" or valueType == "ProtectedString" then -- TODO: need separate ProtectedStringProp?
 		return Roact.createElement(StringProp, roactProps)
-	elseif propDesc.ValueType == "bool" then
+	elseif valueType == "bool" then
 		return Roact.createElement(BoolProp, roactProps)
 	else
 		return Roact.createElement(GenericProp, roactProps)
