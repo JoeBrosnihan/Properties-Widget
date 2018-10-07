@@ -84,7 +84,7 @@ function PropertiesComponent:init()
 end
 
 function PropertiesComponent:didMount()
-	heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(self.onHeartbeat)
+	self.state.heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(self.onHeartbeat)
 end
 
 local function disconnectAll(connections)
