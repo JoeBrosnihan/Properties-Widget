@@ -73,6 +73,8 @@ function BoolProp:render()
 			BackgroundColor3 = Style.propColor,
 			BorderColor3 = Style.borderColor,
 			TextColor3 = Style.textColor,
+			Font = Style.font,
+			TextSize = Style.textSize,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextWrap = false,

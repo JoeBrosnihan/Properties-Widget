@@ -5,7 +5,7 @@ local src = script.Parent
 
 local Roact = require(src.Roact)
 local Reflection = require(src.Reflection)
-local PropComponentFactory = require(src.PropComponentFactory)
+local CategoryComponent = require(src.Components.CategoryComponent)
 
 
 
@@ -40,27 +40,31 @@ local rootHandle
 local PropertiesComponent = Roact.PureComponent:extend("PropertiesComponent")
 
 
-local function addClassPropDescriptors(classDesc, propDescriptorList)
+local function addClassPropDescriptors(classDesc, propCategories)
 	while classDesc do
 		for _,prop in pairs(classDesc._PropsByName) do
-			propDescriptorList[prop] = true
+			local cat = propCategories[prop.Category] or {}
+			propCategories[prop.Category] = cat
+			cat[prop] = true
 		end
 		classDesc = Reflection.classesByName[classDesc.Superclass]
 	end
 end
 
--- Leave cookies in the prop desc's to know if they're readable from Lua
-local function processPropDescSet(propDescSet, selection)
-	for propDesc,_ in pairs(propDescSet) do
-		if propDesc._LuaCanRead == nil then
-			for _,v in pairs(selection) do
-				if v:IsA(propDesc._Class.Name) then
-					propDesc._LuaCanRead = false
-					pcall(function()
-						local readTest = v[propDesc.Name] -- This may throw.
-						propDesc._LuaCanRead = true
-					end)
-					break;
+-- Leave cookies in the prop descriptors to know if they're readable from Lua
+local function processPropDescriptors(propCategories, selection) --TODO: what's the point of this? Can we do this when we go to render instead?
+	for _,catProps in pairs(propCategories) do
+		for propDesc,_ in pairs(catProps) do
+			if propDesc._LuaCanRead == nil then
+				for _,v in pairs(selection) do
+					if v:IsA(propDesc._Class.Name) then
+						propDesc._LuaCanRead = false
+						pcall(function()
+							local readTest = v[propDesc.Name] -- This may throw.
+							propDesc._LuaCanRead = true
+						end)
+						break;
+					end
 				end
 			end
 		end
@@ -101,25 +105,27 @@ function PropertiesComponent:render()
 	end
 	
 	local selectedClasses = {}
-	local propDescriptors = {}
+	local propCategories = {}
 	for _,v in pairs(selection) do
 		local classDesc = Reflection.classesByName[v.ClassName]
 		if not selectedClasses[classDesc] then
 			selectedClasses[classDesc] = true
-			addClassPropDescriptors(classDesc, propDescriptors)
+			addClassPropDescriptors(classDesc, propCategories)
 		end
 	end
-	
-	processPropDescSet(propDescriptors, selection)
+
+	processPropDescriptors(propCategories, selection)
 	
 	local roactChildren = {
 		ListLayout = Roact.createElement("UIListLayout")
 	}
-	for prop,_ in pairs(propDescriptors) do -- TODO: Move out of render. Reading every prop on every render is expensive (9+ ms) an unnecessary.
-		local component = PropComponentFactory.createComponent(prop, selection)
-		if component then
-			roactChildren["Prop_" .. prop.Name] = component --TODO: handle name collisions
-		end
+
+	for catName,catProps in pairs(propCategories) do
+		roactChildren["Category_" .. catName] = Roact.createElement(CategoryComponent, {
+			selection = selection,
+			catName = catName,
+			catProps = catProps,
+		})
 	end
 	
 	-- update children upon property change
